@@ -4152,17 +4152,6 @@ class TestUpdate(tb.QueryTestCase):
         finally:
             await con.aclose()
 
-    @test.xfail(
-        '''
-        UPDATE with computed link in nested expression causes
-        "missing FROM-clause entry for table" error.
-
-        The query uses a computed link (activePrice) that involves
-        a backlink expression in the schema, and when used twice
-        in an arithmetic expression within UPDATE SET, it produces
-        an InternalServerError about missing FROM-clause entry.
-    '''
-    )
     async def test_edgeql_update_computed_link_backlink_01(self):
         await self.con.execute(
             r"""
@@ -4185,10 +4174,10 @@ class TestUpdate(tb.QueryTestCase):
             UPDATE AuditLog SET {
                 cost := (
                     (AuditLog.model.activePrice.dollar_price_per_thousand_prompt_tokens
-                     * <float64>AuditLog.rawModelResponse)
+                     * <float64>AuditLog.rawModelResponse['tokens'])
                     +
                     (AuditLog.model.activePrice.dollar_price_per_thousand_prompt_tokens
-                     * <float64>AuditLog.rawModelResponse)
+                     * <float64>AuditLog.rawModelResponse['tokens'])
                 )
             }
         """
