@@ -903,6 +903,12 @@ class IndexCommand(
                     span=set_of_op.span
                 )
 
+            # Check if this is a redundant index on a link field
+            if field.name == 'expr':
+                self._check_redundant_link_index(
+                    schema, context, expr, value.parse().span
+                )
+
             # compile the expression to sql to preempt errors downstream
             utils.try_compile_irast_to_sql_tree(expr, self.span)
 
@@ -935,6 +941,47 @@ class IndexCommand(
         else:
             return super().compile_expr_field(
                 schema, context, field, value, track_schema_ref_exprs)
+
+    def _check_redundant_link_index(
+        self,
+        schema: s_schema.Schema,
+        context: sd.CommandContext,
+        expr: s_expr.CompiledExpression,
+        span: Optional[parsing.Span],
+    ) -> None:
+        """Check if the index expression is a simple link reference and emit a warning."""
+        from edb.ir import ast as irast
+        from edb.schema import pointers as s_pointers
+        
+        # Check if the expression is a simple pointer access
+        if (isinstance(expr.irast.expr, irast.Pointer) and
+            isinstance(expr.irast.expr.ptrref, irast.PointerRef)):
+            
+            ptrref = expr.irast.expr.ptrref
+            
+            # Get the pointer from the schema
+            try:
+                pointer = schema.get_by_id(ptrref.id)
+                if isinstance(pointer, s_pointers.Link):
+                    # This is a link - emit a warning about redundant index
+                    link_name = pointer.get_shortname(schema).name
+                    
+                    # Create a warning message
+                    warning = errors.WarningMessage(
+                        f"creating an explicit index on link '{link_name}' is "
+                        f"unnecessary as links are automatically indexed"
+                    )
+                    
+                    # Add the warning to the context
+                    if hasattr(context, 'warnings'):
+                        context.warnings.append(warning)
+                    else:
+                        # If warnings list doesn't exist, create it
+                        context.warnings = [warning]
+                        
+            except errors.InvalidReferenceError:
+                # Pointer not found in schema, skip the check
+                pass
 
     def get_dummy_expr_field_value(
         self,
