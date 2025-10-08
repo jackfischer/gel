@@ -433,7 +433,7 @@ class TestIndexes(tb.DDLTestCase):
 
     async def test_index_12(self):
         # Test that creating an index on a link field emits a warning
-        
+
         # Create types following EdgeDB test suite conventions
         await self.con.execute(
             '''
@@ -441,7 +441,7 @@ class TestIndexes(tb.DDLTestCase):
                 create required property name: str;
                 create property email: str;
             };
-            
+
             create type Book {
                 create required property title: str;
                 create property isbn: str;
@@ -449,7 +449,7 @@ class TestIndexes(tb.DDLTestCase):
             };
             '''
         )
-        
+
         # Test 1: Creating an index on a link field should emit a warning
         # This should emit a warning but still succeed
         with self.con.capture_warnings() as warnings:
@@ -460,13 +460,13 @@ class TestIndexes(tb.DDLTestCase):
                 };
                 '''
             )
-        
+
         # Verify that a warning was emitted
         self.assertEqual(len(warnings), 1)
         warning_msg = str(warnings[0])
         self.assertIn("creating an explicit index on link 'author'", warning_msg)
         self.assertIn("unnecessary as links are automatically indexed", warning_msg)
-        
+
         # Verify the index was created (even though it's redundant)
         result = await self.con.query(
             r"""
@@ -479,11 +479,11 @@ class TestIndexes(tb.DDLTestCase):
                 FILTER schema::ObjectType.name = 'default::Book';
             """
         )
-        
+
         self.assertEqual(len(result), 1)
         self.assertEqual(len(result[0].indexes), 1)
         self.assertEqual(result[0].indexes[0].expr, '.author')
-        
+
         # Test 2: Creating an index on a property should NOT emit a warning
         with self.con.capture_warnings() as warnings:
             await self.con.execute(
@@ -493,10 +493,10 @@ class TestIndexes(tb.DDLTestCase):
                 };
                 '''
             )
-        
+
         # Verify that NO warning was emitted for property index
         self.assertEqual(len(warnings), 0)
-        
+
         # Verify both indexes exist
         result = await self.con.query(
             r"""
@@ -509,13 +509,13 @@ class TestIndexes(tb.DDLTestCase):
                 FILTER schema::ObjectType.name = 'default::Book';
             """
         )
-        
+
         self.assertEqual(len(result), 1)
         self.assertEqual(len(result[0].indexes), 2)
         # Indexes should be ordered: .author, .isbn
         self.assertEqual(result[0].indexes[0].expr, '.author')
         self.assertEqual(result[0].indexes[1].expr, '.isbn')
-        
+
         # Test 3: Creating an index on a complex expression should NOT emit a warning
         with self.con.capture_warnings() as warnings:
             await self.con.execute(
@@ -525,10 +525,10 @@ class TestIndexes(tb.DDLTestCase):
                 };
                 '''
             )
-        
+
         # Verify that NO warning was emitted for complex expression
         self.assertEqual(len(warnings), 0)
-        
+
         # Verify all three indexes exist
         result = await self.con.query(
             r"""
@@ -541,23 +541,23 @@ class TestIndexes(tb.DDLTestCase):
                 FILTER schema::ObjectType.name = 'default::Book';
             """
         )
-        
+
         self.assertEqual(len(result), 1)
         self.assertEqual(len(result[0].indexes), 3)
-        
+
         # Test 4: Multi-link scenario - another common pattern
         await self.con.execute(
             '''
             create type Publisher {
                 create required property name: str;
             };
-            
+
             alter type Book {
                 create link publisher: Publisher;
             };
             '''
         )
-        
+
         # This should also emit a warning for the publisher link
         with self.con.capture_warnings() as warnings:
             await self.con.execute(
@@ -567,13 +567,13 @@ class TestIndexes(tb.DDLTestCase):
                 };
                 '''
             )
-        
+
         # Verify that a warning was emitted for the publisher link too
         self.assertEqual(len(warnings), 1)
         warning_msg = str(warnings[0])
         self.assertIn("creating an explicit index on link 'publisher'", warning_msg)
         self.assertIn("unnecessary as links are automatically indexed", warning_msg)
-        
+
         # Verify the publisher link index was also created
         result = await self.con.query(
             r"""
@@ -586,7 +586,7 @@ class TestIndexes(tb.DDLTestCase):
                 FILTER schema::ObjectType.name = 'default::Book';
             """
         )
-        
+
         self.assertEqual(len(result), 1)
         self.assertEqual(len(result[0].indexes), 4)
         # Should include .publisher index
